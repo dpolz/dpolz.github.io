@@ -1,18 +1,20 @@
+import { APP_CONFIG } from "./config.js";
+
 const state = {
-  users: [],
+  users: APP_CONFIG.users || [],
   slots: [],
   combinations: [],
   trips: [],
   calendarMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   selectedDay: localIsoDate(),
-  config: { routeKilometers: 42, co2KgPerKilometer: 0.12 },
+  config: { routeKilometers: APP_CONFIG.routeKilometers ?? 42, co2KgPerKilometer: APP_CONFIG.co2KgPerKilometer ?? 0.12 },
   currentStatistics: null,
   recommendationRequest: 0
 };
 
 const colors = ["#2673ff", "#21bdd1", "#a8d92d", "#ffb12b", "#eb5b68", "#7957d5"];
 const $ = (selector) => document.querySelector(selector);
-const API_BASE = location.hostname === "dpolz.github.io" ? "https://fahrgemeinschaft-planer.ttz-data-sci-0275.chatgpt.site" : "";
+const API_BASE = APP_CONFIG.apiBase || (location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "" : "");
 const TOKEN_KEY = "fairgemeinschaft_session";
 
 function localIsoDate() {

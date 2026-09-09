@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#101c2c" />
     <meta name="description" content="Fahrten fair verteilen und gemeinsam gesparte Kilometer im Blick behalten." />
-    <title>Fahrgemeinschaft</title>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Fairgemeinschaft" />
+    <title>Fairgemeinschaft</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -21,7 +27,7 @@
           <svg viewBox="0 0 24 24"><path d="M5 17h14M7 17l1.2-6.2A2 2 0 0 1 10.16 9h3.68a2 2 0 0 1 1.96 1.8L17 17M8 14h.01M16 14h.01M7 17v2M17 17v2"/></svg>
         </div>
         <p class="eyebrow">Gemeinsam unterwegs</p>
-        <h1 id="login-title">Fahrgemeinschaft</h1>
+        <h1 id="login-title">Fairgemeinschaft</h1>
         <p class="login-copy">Ein Passwort, dann könnt ihr Fahrten eintragen und die faire Verteilung sehen.</p>
         <form id="login-form" class="login-form">
           <label for="password">Passwort</label>
@@ -37,7 +43,7 @@
         <header class="app-header">
           <div>
             <p class="eyebrow">Gemeinsam unterwegs</p>
-            <h1>Fahrgemeinschaft</h1>
+            <h1>Fairgemeinschaft</h1>
           </div>
           <div class="header-actions">
             <time id="today-label"></time>
@@ -122,9 +128,56 @@
               <p id="calculation-note" class="calculation-note"></p>
             </div>
           </div>
+
+          <div class="calendar-divider"></div>
+          <div class="calendar-heading">
+            <div>
+              <p class="kicker">Fahrten verwalten</p>
+              <h3>Kalender</h3>
+            </div>
+            <div class="calendar-nav">
+              <button id="calendar-prev" class="icon-button" type="button" aria-label="Vorheriger Monat">‹</button>
+              <strong id="calendar-month"></strong>
+              <button id="calendar-next" class="icon-button" type="button" aria-label="Nächster Monat">›</button>
+            </div>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+          <div id="calendar-grid" class="calendar-grid" aria-label="Fahrtenkalender"></div>
         </section>
       </div>
     </main>
+
+    <dialog id="day-dialog" class="dialog">
+      <div class="dialog-header">
+        <div><p class="kicker">Fahrten am</p><h2 id="dialog-date"></h2></div>
+        <button id="dialog-close" class="icon-button" type="button" aria-label="Schließen">×</button>
+      </div>
+      <div id="day-trips" class="day-trips"></div>
+      <button id="add-trip" class="primary-button full-button" type="button">Fahrt nachtragen</button>
+    </dialog>
+
+    <dialog id="trip-dialog" class="dialog trip-dialog">
+      <div class="dialog-header">
+        <div><p class="kicker" id="trip-dialog-kicker">Fahrt nachtragen</p><h2 id="trip-dialog-title"></h2></div>
+        <button id="trip-dialog-close" class="icon-button" type="button" aria-label="Schließen">×</button>
+      </div>
+      <form id="trip-form">
+        <input id="trip-id" type="hidden" />
+        <label for="trip-date">Datum</label>
+        <input id="trip-date" type="date" required />
+        <fieldset>
+          <legend>Fahrgemeinschaft</legend>
+          <div id="trip-participants" class="trip-participants"></div>
+        </fieldset>
+        <label for="trip-driver">Fahrer</label>
+        <select id="trip-driver" required></select>
+        <p id="trip-form-error" class="form-error" role="alert"></p>
+        <div class="button-row">
+          <button class="primary-button" type="submit">Speichern</button>
+          <button id="delete-trip" class="danger-button" type="button" hidden>Fahrt löschen</button>
+        </div>
+      </form>
+    </dialog>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

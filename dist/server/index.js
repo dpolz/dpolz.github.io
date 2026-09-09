@@ -38,7 +38,8 @@ function safeEqual(left, right) {
 
 async function isAuthenticated(request, env) {
   if (!env.SESSION_SECRET) return false;
-  const value = getCookie(request, "carpool_session");
+  const authorization = request.headers.get("authorization") || "";
+  const value = authorization.startsWith("Bearer ") ? authorization.slice(7) : getCookie(request, "carpool_session");
   if (!value) return false;
   const [expires, signature] = value.split(".");
   if (!expires || !signature || Number(expires) < Math.floor(Date.now() / 1000)) return false;
@@ -108,7 +109,7 @@ async function handleApi(request, env, url) {
     if (!matches) return json({ error: "Das Passwort ist nicht korrekt." }, 401);
     const expires = String(Math.floor(Date.now() / 1000) + SESSION_MAX_AGE);
     const session = `${expires}.${await sign(expires, env.SESSION_SECRET)}`;
-    return json({ ok: true }, 200, { "set-cookie": `carpool_session=${encodeURIComponent(session)}; Max-Age=${SESSION_MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=Strict` });
+    return json({ ok: true, sessionToken: session }, 200, { "set-cookie": `carpool_session=${encodeURIComponent(session)}; Max-Age=${SESSION_MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=Strict` });
   }
 
   if (url.pathname === "/api/logout" && request.method === "POST") {
@@ -150,6 +151,22 @@ async function handleApi(request, env, url) {
     return json(await statisticsFor(env.DB, participants, users));
   }
 
+  if (url.pathname === "/api/trips" && request.method === "GET") {
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
+    if (!validDate(from) || !validDate(to) || from > to) return json({ error: "Der Zeitraum ist ungültig." }, 400);
+    const result = await env.DB.prepare(
+      "SELECT id, trip_date, participants_json, driver_id, created_at FROM trips WHERE trip_date BETWEEN ? AND ? ORDER BY trip_date, created_at"
+    ).bind(from, to).all();
+    return json({ trips: (result.results || []).map((row) => ({
+      id: row.id,
+      date: row.trip_date,
+      participants: JSON.parse(row.participants_json),
+      driverId: row.driver_id,
+      createdAt: row.created_at
+    })) });
+  }
+
   if (url.pathname === "/api/trips" && request.method === "POST") {
     const body = await readJson(request);
     const participants = normalizeParticipants(body?.participants, validIds);
@@ -168,19 +185,65 @@ async function handleApi(request, env, url) {
     return json({ ok: true, statistics: await statisticsFor(env.DB, participants, users) }, 201);
   }
 
+  const tripMatch = url.pathname.match(/^\/api\/trips\/(\d+)$/);
+  if (tripMatch && request.method === "PUT") {
+    const body = await readJson(request);
+    const participants = normalizeParticipants(body?.participants, validIds);
+    if (participants.length < 2) return json({ error: "Wählt mindestens zwei Personen aus." }, 400);
+    if (!participants.includes(body?.driverId)) return json({ error: "Der Fahrer muss Teil der Fahrgemeinschaft sein." }, 400);
+    if (!validDate(body?.date)) return json({ error: "Das Datum ist ungültig." }, 400);
+    try {
+      const result = await env.DB.prepare(
+        "UPDATE trips SET trip_date = ?, combination_key = ?, participants_json = ?, participant_count = ?, driver_id = ? WHERE id = ?"
+      ).bind(body.date, participants.join("|"), JSON.stringify(participants), participants.length, body.driverId, Number(tripMatch[1])).run();
+      if (!result.meta?.changes) return json({ error: "Die Fahrt wurde nicht gefunden." }, 404);
+    } catch (error) {
+      if (String(error).toLowerCase().includes("unique")) return json({ error: "Für diese Fahrgemeinschaft gibt es an diesem Tag bereits eine Fahrt." }, 409);
+      throw error;
+    }
+    return json({ ok: true });
+  }
+
+  if (tripMatch && request.method === "DELETE") {
+    const result = await env.DB.prepare("DELETE FROM trips WHERE id = ?").bind(Number(tripMatch[1])).run();
+    if (!result.meta?.changes) return json({ error: "Die Fahrt wurde nicht gefunden." }, 404);
+    return json({ ok: true });
+  }
+
   return json({ error: "Nicht gefunden." }, 404);
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const allowedOrigin = env.APP_ORIGIN || "https://dpolz.github.io";
+    const requestOrigin = request.headers.get("origin");
+    const addCors = (response) => {
+      if (requestOrigin !== allowedOrigin) return response;
+      const headers = new Headers(response.headers);
+      headers.set("access-control-allow-origin", allowedOrigin);
+      headers.set("access-control-allow-credentials", "true");
+      headers.set("vary", "Origin");
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    };
     try {
-      if (url.pathname.startsWith("/api/")) return await handleApi(request, env, url);
+      if (url.pathname.startsWith("/api/") && request.method === "OPTIONS") {
+        if (requestOrigin !== allowedOrigin) return new Response(null, { status: 403 });
+        return new Response(null, { status: 204, headers: {
+          "access-control-allow-origin": allowedOrigin,
+          "access-control-allow-credentials": "true",
+          "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "access-control-allow-headers": "Content-Type, Authorization",
+          "access-control-max-age": "86400",
+          "vary": "Origin"
+        } });
+      }
+      if (url.pathname.startsWith("/api/")) return addCors(await handleApi(request, env, url));
       if (env.ASSETS) return env.ASSETS.fetch(request);
-      return new Response("Fahrgemeinschaft", { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } });
+      return new Response("Fairgemeinschaft", { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } });
     } catch (error) {
       console.error(error);
-      return json({ error: "Da ist etwas schiefgegangen. Bitte versucht es noch einmal." }, 500);
+      return addCors(json({ error: "Da ist etwas schiefgegangen. Bitte versucht es noch einmal." }, 500));
     }
   }
 };
