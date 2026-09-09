@@ -1,6 +1,6 @@
-# Fahrgemeinschaft
+# Fairgemeinschaft
 
-Eine kompakte, passwortgeschützte Anwendung zum fairen Verteilen gemeinsamer Fahrten. Sie speichert jede Fahrt, empfiehlt den Fahrer ausschließlich anhand der exakt gleichen Mitfahrer-Kombination und zeigt Fahrten, eingesparte Kilometer sowie eingespartes CO₂ an.
+Eine installierbare, passwortgeschützte PWA zum fairen Verteilen gemeinsamer Fahrten. Sie speichert jede Fahrt, empfiehlt den Fahrer ausschließlich anhand der exakt gleichen Mitfahrer-Kombination und zeigt Fahrten, eingesparte Kilometer sowie eingespartes CO₂ an. Im Kalender lassen sich vergangene Fahrten nachtragen, korrigieren und löschen.
 
 ## Konfiguration
 
@@ -17,4 +17,4 @@ Die Anmeldung nutzt zwei serverseitige Umgebungsvariablen:
 powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
 ```
 
-Die Anwendung wird als Cloudflare-kompatibler Worker mit D1-Datenbank für OpenAI Sites gebaut. Ein rein statisches GitHub-Pages-Deployment kann die gemeinsame, geschützte Historie nicht serverseitig speichern.
+Die sichtbare PWA läuft unter `https://dpolz.github.io`. Da GitHub Pages selbst keine serverseitige Datenbank anbietet, nutzt sie den Cloudflare-kompatiblen Worker als geschützte API und eine D1-Datenbank für die gemeinsame Historie.

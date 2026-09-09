@@ -12,9 +12,14 @@ if (Test-Path -LiteralPath $distRoot) {
 
 New-Item -ItemType Directory -Path $clientRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $serverRoot -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $projectRoot "public\index.html") -Destination $clientRoot
-Copy-Item -LiteralPath (Join-Path $projectRoot "public\styles.css") -Destination $clientRoot
-Copy-Item -LiteralPath (Join-Path $projectRoot "public\app.js") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "index.html") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "styles.css") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "app.js") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "manifest.webmanifest") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "service-worker.js") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "icon.svg") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "icon-192.png") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "icon-512.png") -Destination $clientRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "worker\index.js") -Destination $serverRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "config.js") -Destination (Join-Path $serverRoot "config.js")
 
