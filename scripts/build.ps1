@@ -1,4 +1,6 @@
-param()
+param(
+  [switch]$Deploy
+)
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -25,3 +27,8 @@ Copy-Item -LiteralPath (Join-Path $projectRoot "worker\index.js") -Destination $
 Copy-Item -LiteralPath (Join-Path $projectRoot "config.js") -Destination (Join-Path $serverRoot "config.js")
 
 Write-Output "Built worker and client assets in $distRoot"
+
+if ($Deploy) {
+  Write-Output "Deploying worker via wrangler..."
+  npx wrangler deploy
+}

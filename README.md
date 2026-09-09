@@ -50,10 +50,11 @@ GitHub Pages hostet nur statische Dateien. Die gemeinsame Historie und Authentif
    npx wrangler secret put SESSION_SECRET
    ```
 
-4. **Worker deployen**:
-   ```bash
-   npx wrangler deploy
+4. **Worker bauen & deployen**:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
    ```
+   (Alternativ: `powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Deploy` oder direkt `npx wrangler deploy`)
    Trage die resultierende Worker-URL (z. B. `https://fairgemeinschaft-api.<subdomain>.workers.dev`) in `config.js` als `apiBase` ein.
 
 5. **Änderungen committen & pushen**:
