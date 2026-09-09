@@ -1,4 +1,4 @@
-const CACHE = "fairgemeinschaft-v3";
+const CACHE = "fairgemeinschaft-v5";
 const APP_SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/config.js", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {

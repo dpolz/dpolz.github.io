@@ -53,7 +53,7 @@
           </div>
         </header>
 
-        <div class="route-line" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div class="route-line" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
 
         <section class="card quickstats-card" aria-labelledby="quickstats-title">
           <div class="card-heading">
@@ -63,6 +63,39 @@
               <h2 id="quickstats-title">Quick-Stats</h2>
             </div>
           </div>
+
+          <div class="quickstats-donuts">
+            <div class="donut-card">
+              <h4>Fahrten nach Fahrer</h4>
+              <div class="donut-card-body">
+                <div id="qs-donut-drivers" class="donut donut-sm" role="img" aria-label="Fahrtenverteilung nach Fahrer">
+                  <div class="donut-center"><strong id="qs-donut-drivers-total">0</strong><span>Fahrten</span></div>
+                </div>
+                <div id="qs-legend-drivers" class="legend legend-sm"></div>
+              </div>
+            </div>
+
+            <div class="donut-card">
+              <h4>Personenkilometer</h4>
+              <div class="donut-card-body">
+                <div id="qs-donut-km" class="donut donut-sm" role="img" aria-label="Personenkilometer">
+                  <div class="donut-center"><strong id="qs-donut-km-total">0</strong><span>Pers.-km</span></div>
+                </div>
+                <div id="qs-legend-km" class="legend legend-sm"></div>
+              </div>
+            </div>
+
+            <div class="donut-card">
+              <h4>CO₂-Bilanz (kg)</h4>
+              <div class="donut-card-body">
+                <div id="qs-donut-co2" class="donut donut-sm" role="img" aria-label="CO2-Bilanz">
+                  <div class="donut-center"><strong id="qs-donut-co2-total">0</strong><span>kg CO₂</span></div>
+                </div>
+                <div id="qs-legend-co2" class="legend legend-sm"></div>
+              </div>
+            </div>
+          </div>
+
           <div class="metrics quickstats-metrics">
             <article class="metric">
               <div class="metric-icon total" aria-hidden="true">
@@ -83,6 +116,7 @@
               <div><strong id="qs-saved-co2">0</strong><span>kg CO₂ eingespart</span></div>
             </article>
           </div>
+
           <div class="quickstats-table-wrapper">
             <div class="table-subheading">
               <h3>Teilnehmer (letzte 3 Monate)</h3>
@@ -157,29 +191,12 @@
           </div>
         </section>
 
-        <section id="calendar-card" class="card calendar-card" aria-labelledby="calendar-title">
-          <div class="card-heading">
-            <div class="step">03</div>
-            <div>
-              <p class="kicker">Fahrten verwalten</p>
-              <h2 id="calendar-title">Kalender</h2>
-            </div>
-            <div class="calendar-nav">
-              <button id="calendar-prev" class="icon-button" type="button" aria-label="Vorheriger Monat">‹</button>
-              <strong id="calendar-month"></strong>
-              <button id="calendar-next" class="icon-button" type="button" aria-label="Nächster Monat">›</button>
-            </div>
-          </div>
-          <div class="calendar-weekdays" aria-hidden="true"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
-          <div id="calendar-grid" class="calendar-grid" aria-label="Fahrtenkalender"></div>
-        </section>
-
         <section id="history-card" class="card history-card" aria-labelledby="history-title">
           <div class="card-heading history-heading">
-            <div class="step">04</div>
+            <div class="step">03</div>
             <div>
               <p class="kicker">Was haben wir erreicht?</p>
-              <h2 id="history-title">Kombinations-Historie</h2>
+              <h2 id="history-title">Fairgemeinschafts-Statistik</h2>
             </div>
             <label class="history-select-label" for="history-select">
               <span>Kombination</span>
@@ -210,6 +227,55 @@
               <p id="calculation-note" class="calculation-note"></p>
             </div>
           </div>
+        </section>
+
+        <section id="user-stats-card" class="card user-stats-card" aria-labelledby="user-stats-title">
+          <div class="card-heading">
+            <div class="step">04</div>
+            <div>
+              <p class="kicker">Detaillierte Auswertung</p>
+              <h2 id="user-stats-title">User-Statistik</h2>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="stats-table user-stats-table">
+              <thead>
+                <tr>
+                  <th>Nutzer</th>
+                  <th>Fahrten</th>
+                  <th>Mitfahrten</th>
+                  <th>Fahrer</th>
+                  <th>Fahrer / Mitfahrer</th>
+                  <th>Bevorz. Größe</th>
+                  <th>Bevorz. Fairgemeinschaft</th>
+                  <th>Best Buddy</th>
+                  <th>Lieblings-Fahrer</th>
+                  <th>Fairgem.-Streak</th>
+                  <th>Fahrer-Streak</th>
+                </tr>
+              </thead>
+              <tbody id="user-stats-tbody">
+                <tr><td colspan="11" class="table-empty">Wird geladen …</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="calendar-card" class="card calendar-card" aria-labelledby="calendar-title">
+          <div class="card-heading">
+            <div class="step">05</div>
+            <div>
+              <p class="kicker">Fahrten verwalten</p>
+              <h2 id="calendar-title">Kalender</h2>
+            </div>
+            <div class="calendar-nav">
+              <button id="calendar-prev" class="icon-button" type="button" aria-label="Vorheriger Monat">‹</button>
+              <strong id="calendar-month"></strong>
+              <button id="calendar-next" class="icon-button" type="button" aria-label="Nächster Monat">›</button>
+            </div>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+          <div id="calendar-grid" class="calendar-grid" aria-label="Fahrtenkalender"></div>
         </section>
       </div>
     </main>

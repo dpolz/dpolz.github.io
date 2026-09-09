@@ -43,7 +43,7 @@ async function isAuthenticated(request, env) {
   if (!value) return false;
   const [expires, signature] = value.split(".");
   if (!expires || !signature || Number(expires) < Math.floor(Date.now() / 1000)) return false;
-  return safeEqual(signature, await sign(expires, env.SESSION_SECRET));
+  return safeEqual(signature, await sign(expires, env.SESSION_SECRET.trim()));
 }
 
 async function readJson(request) {
@@ -78,15 +78,33 @@ async function usersFor(db) {
 
 async function calculateAllStats(db, users) {
   const tripsResult = await db.prepare(
-    "SELECT id, trip_date, participants_json, participant_count, driver_id FROM trips ORDER BY trip_date ASC"
+    "SELECT id, trip_date, participants_json, participant_count, driver_id, created_at FROM trips ORDER BY trip_date ASC, created_at ASC, id ASC"
   ).all();
-  const trips = tripsResult.results || [];
+  const trips = (tripsResult.results || []).map((row) => {
+    let participants = [];
+    try {
+      participants = JSON.parse(row.participants_json || "[]");
+    } catch {
+      participants = [];
+    }
+    const count = participants.length || row.participant_count || 1;
+    return {
+      id: row.id,
+      date: row.trip_date,
+      participants,
+      count,
+      driverId: row.driver_id,
+      createdAt: row.created_at
+    };
+  });
 
   const now = new Date();
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()).toISOString().slice(0, 10);
 
   let totalTrips = trips.length;
   let totalSavedKm = 0;
+  let totalPersonKm = 0;
+  let actualDrivenKm = totalTrips * APP_CONFIG.routeKilometers;
 
   const userStatsMap = {};
   users.forEach((u) => {
@@ -94,67 +112,188 @@ async function calculateAllStats(db, users) {
       id: u.id,
       name: u.name,
       tripsTotal: 0,
-      tripsBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
+      passengerTotal: 0,
       driverTotal: 0,
+      tripsBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
       driverBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
       balance: 0,
       lastTripDate: null,
-      activeLast3Months: false
+      activeLast3Months: false,
+      carpoolStreak: 0,
+      driverStreak: 0,
+      buddiesCount: {},
+      driverFavorites: {},
+      combinationCounts: {}
     };
   });
 
-  trips.forEach((trip) => {
-    let participants = [];
-    try {
-      participants = JSON.parse(trip.participants_json || "[]");
-    } catch {
-      participants = [];
-    }
-    const count = participants.length || trip.participant_count || 1;
-    const size = Math.min(Math.max(count, 2), 5);
-    totalSavedKm += Math.max(0, count - 1) * APP_CONFIG.routeKilometers;
-    const deduction = count > 0 ? 1 / count : 0;
+  const globalDriverCounts = {};
 
-    participants.forEach((userId) => {
+  trips.forEach((trip) => {
+    const count = trip.count;
+    const size = Math.min(Math.max(count, 2), 5);
+    const savedForTrip = Math.max(0, count - 1) * APP_CONFIG.routeKilometers;
+    totalSavedKm += savedForTrip;
+    totalPersonKm += count * APP_CONFIG.routeKilometers;
+    const deduction = count > 0 ? 1 / count : 0;
+    const combKey = trip.participants.join("|");
+
+    globalDriverCounts[trip.driverId] = (globalDriverCounts[trip.driverId] || 0) + 1;
+
+    trip.participants.forEach((userId) => {
       if (!userStatsMap[userId]) {
         userStatsMap[userId] = {
           id: userId,
           name: users.find((u) => u.id === userId)?.name || userId,
           tripsTotal: 0,
-          tripsBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
+          passengerTotal: 0,
           driverTotal: 0,
+          tripsBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
           driverBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
           balance: 0,
           lastTripDate: null,
-          activeLast3Months: false
+          activeLast3Months: false,
+          carpoolStreak: 0,
+          driverStreak: 0,
+          buddiesCount: {},
+          driverFavorites: {},
+          combinationCounts: {}
         };
       }
       const u = userStatsMap[userId];
       u.tripsTotal += 1;
       u.tripsBySize[size] = (u.tripsBySize[size] || 0) + 1;
       u.balance -= deduction;
-      u.lastTripDate = trip.trip_date;
-      if (trip.trip_date >= threeMonthsAgo) {
+      u.lastTripDate = trip.date;
+      if (trip.date >= threeMonthsAgo) {
         u.activeLast3Months = true;
       }
-    });
+      u.combinationCounts[combKey] = (u.combinationCounts[combKey] || 0) + 1;
 
-    if (userStatsMap[trip.driver_id]) {
-      const d = userStatsMap[trip.driver_id];
-      d.driverTotal += 1;
-      d.driverBySize[size] = (d.driverBySize[size] || 0) + 1;
-      d.balance += 1.0;
+      trip.participants.forEach((otherId) => {
+        if (otherId !== userId) {
+          u.buddiesCount[otherId] = (u.buddiesCount[otherId] || 0) + 1;
+        }
+      });
+
+      if (trip.driverId === userId) {
+        u.driverTotal += 1;
+        u.driverBySize[size] = (u.driverBySize[size] || 0) + 1;
+        u.balance += 1.0;
+      } else {
+        u.passengerTotal += 1;
+        u.driverFavorites[trip.driverId] = (u.driverFavorites[trip.driverId] || 0) + 1;
+      }
+    });
+  });
+
+  users.forEach((u) => {
+    const stats = userStatsMap[u.id];
+    if (!stats) return;
+
+    let maxCarpool = 0;
+    let currCarpool = 0;
+    for (const trip of trips) {
+      if (trip.participants.includes(u.id)) {
+        currCarpool += 1;
+        if (currCarpool > maxCarpool) maxCarpool = currCarpool;
+      } else {
+        currCarpool = 0;
+      }
+    }
+    stats.carpoolStreak = maxCarpool;
+
+    const userRides = trips.filter((t) => t.participants.includes(u.id));
+    let maxDriver = 0;
+    let currDriver = 0;
+    for (const trip of userRides) {
+      if (trip.driverId === u.id) {
+        currDriver += 1;
+        if (currDriver > maxDriver) maxDriver = currDriver;
+      } else {
+        currDriver = 0;
+      }
+    }
+    stats.driverStreak = maxDriver;
+
+    let bestSize = null;
+    let maxCountSize = 0;
+    [2, 3, 4, 5].forEach((s) => {
+      if ((stats.tripsBySize[s] || 0) > maxCountSize) {
+        maxCountSize = stats.tripsBySize[s];
+        bestSize = `${s}er`;
+      }
+    });
+    stats.favoriteSize = bestSize ? `${bestSize} (${maxCountSize}×)` : "—";
+
+    let bestCombKey = null;
+    let maxCombCount = 0;
+    Object.entries(stats.combinationCounts).forEach(([k, cnt]) => {
+      if (cnt > maxCombCount) {
+        maxCombCount = cnt;
+        bestCombKey = k;
+      }
+    });
+    if (bestCombKey) {
+      const names = bestCombKey.split("|").map((id) => users.find((x) => x.id === id)?.name || id).join(" · ");
+      stats.favoriteCombination = `${names} (${maxCombCount}×)`;
+    } else {
+      stats.favoriteCombination = "—";
+    }
+
+    let bestBuddyId = null;
+    let maxBuddyCount = 0;
+    Object.entries(stats.buddiesCount).forEach(([id, cnt]) => {
+      if (cnt > maxBuddyCount) {
+        maxBuddyCount = cnt;
+        bestBuddyId = id;
+      }
+    });
+    stats.bestBuddy = bestBuddyId ? `${users.find((x) => x.id === bestBuddyId)?.name || bestBuddyId} (${maxBuddyCount}×)` : "—";
+
+    let favDriverId = null;
+    let maxFavDriverCount = 0;
+    Object.entries(stats.driverFavorites).forEach(([id, cnt]) => {
+      if (cnt > maxFavDriverCount) {
+        maxFavDriverCount = cnt;
+        favDriverId = id;
+      }
+    });
+    stats.favoriteDriver = favDriverId ? `${users.find((x) => x.id === favDriverId)?.name || favDriverId} (${maxFavDriverCount}×)` : "—";
+
+    if (stats.tripsTotal === 0) {
+      stats.ratio = "—";
+    } else if (stats.passengerTotal === 0) {
+      stats.ratio = "Nur Fahrer";
+    } else if (stats.driverTotal === 0) {
+      stats.ratio = "Nur Mitfahrer";
+    } else {
+      const r = (stats.passengerTotal / stats.driverTotal).toFixed(1);
+      stats.ratio = `1 : ${r.replace(/\.0$/, "")}`;
     }
   });
 
   const userStats = users.map((u) => userStatsMap[u.id]);
   const totalSavedCo2 = totalSavedKm * APP_CONFIG.co2KgPerKilometer;
+  const actualCo2Kg = actualDrivenKm * APP_CONFIG.co2KgPerKilometer;
+  const hypotheticalCo2Kg = totalPersonKm * APP_CONFIG.co2KgPerKilometer;
+
+  const driverBreakdown = users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    trips: globalDriverCounts[u.id] || 0
+  })).filter((u) => u.trips > 0 || users.length <= 10);
 
   return {
     globalStats: {
       totalTrips,
       totalSavedKm,
-      totalSavedCo2
+      totalSavedCo2,
+      totalPersonKm,
+      actualDrivenKm,
+      actualCo2Kg,
+      hypotheticalCo2Kg,
+      driverBreakdown
     },
     userStats
   };
@@ -208,10 +347,16 @@ async function handleApi(request, env, url) {
   if (url.pathname === "/api/login" && request.method === "POST") {
     const body = await readJson(request);
     if (!env.AUTH_PASSWORD_HASH || !env.SESSION_SECRET) return json({ error: "Die Anmeldung ist noch nicht konfiguriert." }, 503);
-    const matches = body && typeof body.password === "string" && safeEqual(await sha256(body.password), env.AUTH_PASSWORD_HASH.toLowerCase());
+    const configuredSecret = String(env.AUTH_PASSWORD_HASH).trim();
+    const inputPass = body && typeof body.password === "string" ? body.password.trim() : "";
+    const hashedInput = await sha256(inputPass);
+    const matches = inputPass.length > 0 && (
+      safeEqual(hashedInput, configuredSecret.toLowerCase()) ||
+      safeEqual(inputPass, configuredSecret)
+    );
     if (!matches) return json({ error: "Das Passwort ist nicht korrekt." }, 401);
     const expires = String(Math.floor(Date.now() / 1000) + SESSION_MAX_AGE);
-    const session = `${expires}.${await sign(expires, env.SESSION_SECRET)}`;
+    const session = `${expires}.${await sign(expires, env.SESSION_SECRET.trim())}`;
     return json({ ok: true, sessionToken: session }, 200, { "set-cookie": `carpool_session=${encodeURIComponent(session)}; Max-Age=${SESSION_MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=Strict` });
   }
 

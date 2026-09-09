@@ -134,13 +134,90 @@ function setSyncStatus(text, loading = false) {
   status.classList.toggle("loading", loading);
 }
 
+function renderDonutChart(donutEl, legendEl, total, segments) {
+  if (!donutEl) return;
+  if (!total || total <= 0) {
+    donutEl.style.background = "#dfe7ee";
+    if (legendEl) legendEl.innerHTML = `<div class="legend-item"><span class="legend-value">Noch keine Fahrten</span></div>`;
+    return;
+  }
+  let cursor = 0;
+  const gradientParts = segments.map((seg) => {
+    const start = cursor;
+    const share = (seg.value / total) * 100;
+    cursor += share;
+    return `${seg.color} ${start}% ${cursor}%`;
+  });
+  donutEl.style.background = `conic-gradient(${gradientParts.join(",")})`;
+  if (legendEl) {
+    legendEl.innerHTML = segments.map((seg) => `
+      <div class="legend-item">
+        <span class="legend-dot" style="background:${seg.color}"></span>
+        <span class="legend-name">${seg.label}</span>
+        <span class="legend-value">${seg.displayValue || seg.value}</span>
+      </div>
+    `).join("");
+  }
+}
+
 function renderQuickStats(globalStats, userStats) {
   if (globalStats) {
     $("#qs-total-trips").textContent = (globalStats.totalTrips || 0).toLocaleString("de-DE");
     $("#qs-saved-km").textContent = (globalStats.totalSavedKm || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 });
     $("#qs-saved-co2").textContent = (globalStats.totalSavedCo2 || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+
+    // Donut 1: Fahrer-Verteilung
+    const driverTripsTotal = globalStats.totalTrips || 0;
+    $("#qs-donut-drivers-total").textContent = driverTripsTotal.toLocaleString("de-DE");
+    const activeDrivers = (userStats || []).filter((u) => u.driverTotal > 0);
+    const driverSegments = activeDrivers.map((u, i) => ({
+      label: u.name,
+      value: u.driverTotal,
+      displayValue: `${u.driverTotal} ${u.driverTotal === 1 ? "Fahrt" : "Fahrten"}`,
+      color: colors[i % colors.length]
+    }));
+    renderDonutChart($("#qs-donut-drivers"), $("#qs-legend-drivers"), driverTripsTotal, driverSegments);
+
+    // Donut 2: Personenkilometer
+    const personKmTotal = globalStats.totalPersonKm || 0;
+    $("#qs-donut-km-total").textContent = Math.round(personKmTotal).toLocaleString("de-DE");
+    const kmSegments = [
+      {
+        label: "Tatsächlich gefahren",
+        value: globalStats.actualDrivenKm || 0,
+        displayValue: `${(globalStats.actualDrivenKm || 0).toLocaleString("de-DE")} km`,
+        color: "#2673ff"
+      },
+      {
+        label: "Vermieden (eingespart)",
+        value: globalStats.totalSavedKm || 0,
+        displayValue: `${(globalStats.totalSavedKm || 0).toLocaleString("de-DE")} km`,
+        color: "#21bdd1"
+      }
+    ];
+    renderDonutChart($("#qs-donut-km"), $("#qs-legend-km"), personKmTotal, kmSegments);
+
+    // Donut 3: CO2 Bilanz
+    const co2Total = globalStats.hypotheticalCo2Kg || 0;
+    $("#qs-donut-co2-total").textContent = co2Total.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+    const co2Segments = [
+      {
+        label: "Tatsächlich ausgestoßen",
+        value: globalStats.actualCo2Kg || 0,
+        displayValue: `${(globalStats.actualCo2Kg || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 })} kg`,
+        color: "#eb5b68"
+      },
+      {
+        label: "Vermieden (eingespart)",
+        value: globalStats.totalSavedCo2 || 0,
+        displayValue: `${(globalStats.totalSavedCo2 || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 })} kg`,
+        color: "#a8d92d"
+      }
+    ];
+    renderDonutChart($("#qs-donut-co2"), $("#qs-legend-co2"), co2Total, co2Segments);
   }
 
+  // Quick-Stats 3-Month Table
   const tbody = $("#quickstats-tbody");
   if (!userStats || !userStats.length) {
     tbody.innerHTML = `<tr><td colspan="4" class="table-empty">Noch keine Daten verfügbar.</td></tr>`;
@@ -157,6 +234,33 @@ function renderQuickStats(globalStats, userStats) {
       <td>${formatDetailSchema(u.tripsTotal, u.tripsBySize)}</td>
       <td>${formatDetailSchema(u.driverTotal, u.driverBySize)}</td>
       <td>${formatBalance(u.balance)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderUserStatsTable(userStats) {
+  const tbody = $("#user-stats-tbody");
+  if (!tbody) return;
+  if (!userStats || !userStats.length) {
+    tbody.innerHTML = `<tr><td colspan="11" class="table-empty">Noch keine Daten verfügbar.</td></tr>`;
+    return;
+  }
+
+  const sorted = [...userStats].sort((a, b) => b.tripsTotal - a.tripsTotal || a.name.localeCompare(b.name));
+
+  tbody.innerHTML = sorted.map((u) => `
+    <tr>
+      <td><strong>${u.name}</strong></td>
+      <td><strong>${u.tripsTotal}</strong></td>
+      <td>${u.passengerTotal}</td>
+      <td>${u.driverTotal}</td>
+      <td><span class="ratio-badge">${u.ratio}</span></td>
+      <td>${u.favoriteSize}</td>
+      <td>${u.favoriteCombination}</td>
+      <td>${u.bestBuddy}</td>
+      <td>${u.favoriteDriver}</td>
+      <td>${u.carpoolStreak > 0 ? `<span class="streak-badge fire">${u.carpoolStreak}</span>` : "0"}</td>
+      <td>${u.driverStreak > 0 ? `<span class="streak-badge fire">${u.driverStreak}</span>` : "0"}</td>
     </tr>
   `).join("");
 }
@@ -406,6 +510,7 @@ async function refreshAfterTripChange(dateValue) {
   state.globalStats = data.globalStats;
   state.userStats = data.userStats;
   renderQuickStats(state.globalStats, state.userStats);
+  renderUserStatsTable(state.userStats);
   renderHistoryOptions();
   const changed = new Date(`${dateValue}T12:00:00`);
   state.calendarMonth = new Date(changed.getFullYear(), changed.getMonth(), 1);
@@ -422,6 +527,7 @@ async function bootstrap() {
     state.globalStats = data.globalStats;
     state.userStats = data.userStats;
     renderQuickStats(state.globalStats, state.userStats);
+    renderUserStatsTable(state.userStats);
     initializeSlots();
     renderSlots();
     renderHistoryOptions();
