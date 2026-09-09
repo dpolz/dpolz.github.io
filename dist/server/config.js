@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
   // Trage hier nach dem Cloudflare-Worker-Deploy deine Worker-URL ein (z. B. "https://fairgemeinschaft-api.<subdomain>.workers.dev")
   // Leer lassen (""), falls lokaler Dev-Server oder Reverse Proxy genutzt wird
-  apiBase: "",
+  apiBase: "https://fairgemeinschaft-api.fairgemeinschaft.workers.dev",
   users: [
     { id: "felix", name: "Felix" },
     { id: "mo", name: "Mo" },
