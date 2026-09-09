@@ -1,4 +1,4 @@
-import { APP_CONFIG } from "../config.js";
+import { APP_CONFIG } from "./config.js";
 
 const encoder = new TextEncoder();
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30;

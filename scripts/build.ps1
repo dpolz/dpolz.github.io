@@ -16,6 +16,6 @@ Copy-Item -LiteralPath (Join-Path $projectRoot "public\index.html") -Destination
 Copy-Item -LiteralPath (Join-Path $projectRoot "public\styles.css") -Destination $clientRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "public\app.js") -Destination $clientRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "worker\index.js") -Destination $serverRoot
-Copy-Item -LiteralPath (Join-Path $projectRoot "config.js") -Destination $distRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "config.js") -Destination (Join-Path $serverRoot "config.js")
 
 Write-Output "Built worker and client assets in $distRoot"
