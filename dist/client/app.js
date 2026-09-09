@@ -5,6 +5,8 @@ const state = {
   slots: [],
   combinations: [],
   trips: [],
+  globalStats: { totalTrips: 0, totalSavedKm: 0, totalSavedCo2: 0 },
+  userStats: [],
   calendarMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   selectedDay: localIsoDate(),
   config: { routeKilometers: APP_CONFIG.routeKilometers ?? 42, co2KgPerKilometer: APP_CONFIG.co2KgPerKilometer ?? 0.12 },
@@ -12,7 +14,7 @@ const state = {
   recommendationRequest: 0
 };
 
-const colors = ["#2673ff", "#21bdd1", "#a8d92d", "#ffb12b", "#eb5b68", "#7957d5"];
+const colors = ["#2673ff", "#21bdd1", "#a8d92d", "#ffb12b", "#eb5b68", "#7957d5", "#f97316", "#06b6d4", "#84cc16", "#a855f7"];
 const $ = (selector) => document.querySelector(selector);
 const API_BASE = APP_CONFIG.apiBase || (location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "" : "");
 const TOKEN_KEY = "fairgemeinschaft_session";
@@ -66,11 +68,29 @@ function formatCombination(participants) {
   return participants.map(memberName).join(" · ");
 }
 
+function formatDetailSchema(total, bySize = {}) {
+  const s2 = bySize?.[2] || 0;
+  const s3 = bySize?.[3] || 0;
+  const s4 = bySize?.[4] || 0;
+  const s5 = bySize?.[5] || 0;
+  return `<strong class="detail-total">${total}</strong><span class="detail-breakdown">/ ${s2} / ${s3} / ${s4} / ${s5}</span>`;
+}
+
+function formatBalance(value) {
+  const num = Number(value) || 0;
+  const sign = num > 0.001 ? "+" : "";
+  const cls = num > 0.001 ? "balance-positive" : num < -0.001 ? "balance-negative" : "balance-neutral";
+  return `<span class="balance-badge ${cls}">${sign}${num.toFixed(2)}</span>`;
+}
+
 function initializeSlots() {
-  state.slots = Array.from({ length: 4 }, (_, index) => ({
-    enabled: index < Math.min(3, state.users.length),
-    userId: index < state.users.length ? state.users[index].id : ""
-  }));
+  state.slots = [
+    { enabled: true, userId: state.users.some((u) => u.id === "felix") ? "felix" : (state.users[0]?.id || "") },
+    { enabled: true, userId: state.users.some((u) => u.id === "mo") ? "mo" : (state.users[1]?.id || "") },
+    { enabled: true, userId: state.users.some((u) => u.id === "daniel") ? "daniel" : (state.users[2]?.id || "") },
+    { enabled: false, userId: "" },
+    { enabled: false, userId: "" }
+  ];
 }
 
 function renderSlots() {
@@ -114,36 +134,86 @@ function setSyncStatus(text, loading = false) {
   status.classList.toggle("loading", loading);
 }
 
+function renderQuickStats(globalStats, userStats) {
+  if (globalStats) {
+    $("#qs-total-trips").textContent = (globalStats.totalTrips || 0).toLocaleString("de-DE");
+    $("#qs-saved-km").textContent = (globalStats.totalSavedKm || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+    $("#qs-saved-co2").textContent = (globalStats.totalSavedCo2 || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+  }
+
+  const tbody = $("#quickstats-tbody");
+  if (!userStats || !userStats.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="table-empty">Noch keine Daten verfügbar.</td></tr>`;
+    return;
+  }
+
+  const activeUsers = userStats.filter((u) => u.activeLast3Months || u.tripsTotal > 0);
+  const displayList = activeUsers.length ? activeUsers : userStats;
+  const sorted = [...displayList].sort((a, b) => a.balance - b.balance || a.name.localeCompare(b.name));
+
+  tbody.innerHTML = sorted.map((u) => `
+    <tr>
+      <td><strong>${u.name}</strong></td>
+      <td>${formatDetailSchema(u.tripsTotal, u.tripsBySize)}</td>
+      <td>${formatDetailSchema(u.driverTotal, u.driverBySize)}</td>
+      <td>${formatBalance(u.balance)}</td>
+    </tr>
+  `).join("");
+}
+
 async function updateCombination() {
   hideResult();
   const participants = activeParticipants();
-  renderDriverOptions(participants);
   const error = $("#combination-error");
+  const details = $("#combination-details");
+
   if (hasDuplicateParticipants()) {
     error.textContent = "Eine Person kann nur einmal Teil der Kombination sein.";
-    $("#recommended-driver").textContent = "—";
-    $("#recommendation-reason").textContent = "Bitte doppelte Auswahl korrigieren";
+    if (details) details.hidden = true;
     setSyncStatus("Bitte prüfen");
     return;
   }
   if (participants.length < 2) {
     error.textContent = "Wählt mindestens zwei Personen aus.";
-    $("#recommended-driver").textContent = "—";
-    $("#recommendation-reason").textContent = "Für eine Empfehlung fehlen Mitfahrer";
+    if (details) details.hidden = true;
     setSyncStatus("Unvollständig");
     return;
   }
+
   error.textContent = "";
+  if (details) details.hidden = false;
+  renderDriverOptions(participants);
   setSyncStatus("Wird aktualisiert", true);
+
   const requestId = ++state.recommendationRequest;
   try {
     const statistics = await api("/api/recommendation", { method: "POST", body: JSON.stringify({ participants }) });
     if (requestId !== state.recommendationRequest) return;
     state.currentStatistics = statistics;
-    $("#recommended-driver").textContent = statistics.recommended.name;
-    const trips = statistics.recommended.trips;
-    $("#recommendation-reason").textContent = trips === 0 ? "In dieser Kombination bisher noch nicht gefahren" : `${trips} ${trips === 1 ? "Fahrt" : "Fahrten"} in genau dieser Kombination`;
-    renderDriverOptions(participants, statistics.recommended.id);
+
+    const pTbody = $("#participant-stats-tbody");
+    if (pTbody && statistics.memberStats && statistics.memberStats.length) {
+      pTbody.innerHTML = statistics.memberStats.map((u) => `
+        <tr>
+          <td><strong>${u.name}</strong></td>
+          <td>${formatDetailSchema(u.tripsTotal, u.tripsBySize)}</td>
+          <td>${formatDetailSchema(u.driverTotal, u.driverBySize)}</td>
+          <td>${formatBalance(u.balance)}</td>
+        </tr>
+      `).join("");
+    }
+
+    if (statistics.recommended) {
+      $("#recommended-driver").textContent = statistics.recommended.name;
+      const recBalance = (statistics.recommended.balance || 0).toFixed(2);
+      const sign = statistics.recommended.balance > 0.001 ? "+" : "";
+      $("#recommendation-reason").textContent = `${statistics.recommended.name} hat mit Bilanz ${sign}${recBalance} den niedrigsten Wert (ist bei ${statistics.recommended.tripsTotal} Fahrten ${statistics.recommended.driverTotal}-mal gefahren).`;
+      renderDriverOptions(participants, statistics.recommended.id);
+    } else {
+      $("#recommended-driver").textContent = "—";
+      $("#recommendation-reason").textContent = "Keine Empfehlung möglich";
+    }
+
     ensureCurrentHistoryOption(participants);
     setSyncStatus("Aktuell");
   } catch (errorValue) {
@@ -271,9 +341,11 @@ function renderCalendar() {
     }
     const dateValue = isoDate(cellYear, cellMonth, day);
     const trips = state.trips.filter((trip) => trip.date === dateValue);
+    const driverTags = trips.map((trip) => `<span class="cal-driver-tag" title="Fahrer: ${memberName(trip.driverId)} (${trip.participants.length} Personen)">${memberName(trip.driverId)}</span>`).join("");
+
     cells.push(`<button class="calendar-day${outside ? " outside" : ""}${dateValue === localIsoDate() ? " today" : ""}${trips.length ? " has-trips" : ""}" type="button" data-date="${dateValue}" aria-label="${day}. ${new Intl.DateTimeFormat("de-DE", { month: "long" }).format(new Date(cellYear, cellMonth, 1))}${trips.length ? `, ${trips.length} ${trips.length === 1 ? "Fahrt" : "Fahrten"}` : ""}">
       <span class="day-number">${day}</span>
-      ${trips.length ? `<span class="trip-count">${trips.length} ${trips.length === 1 ? "Fahrt" : "Fahrten"}</span><span class="trip-dots">${trips.slice(0, 3).map(() => "<i></i>").join("")}</span>` : ""}
+      ${trips.length ? `<div class="cal-driver-list">${driverTags}</div><span class="trip-dots">${trips.slice(0, 3).map(() => "<i></i>").join("")}</span>` : ""}
     </button>`);
   }
   $("#calendar-grid").innerHTML = cells.join("");
@@ -329,7 +401,11 @@ function openTripForm(trip = null) {
 
 async function refreshAfterTripChange(dateValue) {
   const data = await api("/api/bootstrap");
+  state.users = data.users;
   state.combinations = data.combinations;
+  state.globalStats = data.globalStats;
+  state.userStats = data.userStats;
+  renderQuickStats(state.globalStats, state.userStats);
   renderHistoryOptions();
   const changed = new Date(`${dateValue}T12:00:00`);
   state.calendarMonth = new Date(changed.getFullYear(), changed.getMonth(), 1);
@@ -343,6 +419,9 @@ async function bootstrap() {
     state.users = data.users;
     state.combinations = data.combinations;
     state.config = data.config;
+    state.globalStats = data.globalStats;
+    state.userStats = data.userStats;
+    renderQuickStats(state.globalStats, state.userStats);
     initializeSlots();
     renderSlots();
     renderHistoryOptions();
@@ -396,15 +475,11 @@ $("#confirm-driver").addEventListener("click", async () => {
       body: JSON.stringify({ date: localIsoDate(), participants, driverId })
     });
     showResult("success", `Erfolgreich – ${memberName(driverId)} wurde als Fahrer gespeichert.`);
+    await refreshAfterTripChange(localIsoDate());
     const key = participants.join("|");
-    const existing = state.combinations.find((item) => item.key === key);
-    if (existing) existing.trips += 1;
-    else state.combinations.unshift({ key, participants, trips: 1 });
-    renderHistoryOptions();
     $("#history-select").value = key;
     renderStatistics(result.statistics);
-    await loadCalendar();
-    setTimeout(() => $("#history-card").scrollIntoView({ behavior: "smooth", block: "start" }), 350);
+    setTimeout(() => $("#combination-card").scrollIntoView({ behavior: "smooth", block: "start" }), 350);
   } catch (error) {
     showResult("error", error.message);
   } finally {

@@ -76,24 +76,127 @@ async function usersFor(db) {
   return result.results || [];
 }
 
+async function calculateAllStats(db, users) {
+  const tripsResult = await db.prepare(
+    "SELECT id, trip_date, participants_json, participant_count, driver_id FROM trips ORDER BY trip_date ASC"
+  ).all();
+  const trips = tripsResult.results || [];
+
+  const now = new Date();
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()).toISOString().slice(0, 10);
+
+  let totalTrips = trips.length;
+  let totalSavedKm = 0;
+
+  const userStatsMap = {};
+  users.forEach((u) => {
+    userStatsMap[u.id] = {
+      id: u.id,
+      name: u.name,
+      tripsTotal: 0,
+      tripsBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
+      driverTotal: 0,
+      driverBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
+      balance: 0,
+      lastTripDate: null,
+      activeLast3Months: false
+    };
+  });
+
+  trips.forEach((trip) => {
+    let participants = [];
+    try {
+      participants = JSON.parse(trip.participants_json || "[]");
+    } catch {
+      participants = [];
+    }
+    const count = participants.length || trip.participant_count || 1;
+    const size = Math.min(Math.max(count, 2), 5);
+    totalSavedKm += Math.max(0, count - 1) * APP_CONFIG.routeKilometers;
+    const deduction = count > 0 ? 1 / count : 0;
+
+    participants.forEach((userId) => {
+      if (!userStatsMap[userId]) {
+        userStatsMap[userId] = {
+          id: userId,
+          name: users.find((u) => u.id === userId)?.name || userId,
+          tripsTotal: 0,
+          tripsBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
+          driverTotal: 0,
+          driverBySize: { 2: 0, 3: 0, 4: 0, 5: 0 },
+          balance: 0,
+          lastTripDate: null,
+          activeLast3Months: false
+        };
+      }
+      const u = userStatsMap[userId];
+      u.tripsTotal += 1;
+      u.tripsBySize[size] = (u.tripsBySize[size] || 0) + 1;
+      u.balance -= deduction;
+      u.lastTripDate = trip.trip_date;
+      if (trip.trip_date >= threeMonthsAgo) {
+        u.activeLast3Months = true;
+      }
+    });
+
+    if (userStatsMap[trip.driver_id]) {
+      const d = userStatsMap[trip.driver_id];
+      d.driverTotal += 1;
+      d.driverBySize[size] = (d.driverBySize[size] || 0) + 1;
+      d.balance += 1.0;
+    }
+  });
+
+  const userStats = users.map((u) => userStatsMap[u.id]);
+  const totalSavedCo2 = totalSavedKm * APP_CONFIG.co2KgPerKilometer;
+
+  return {
+    globalStats: {
+      totalTrips,
+      totalSavedKm,
+      totalSavedCo2
+    },
+    userStats
+  };
+}
+
 async function statisticsFor(db, participants, users) {
   const combinationKey = participants.join("|");
   const countsResult = await db.prepare(
     "SELECT driver_id, COUNT(*) AS trips FROM trips WHERE combination_key = ? GROUP BY driver_id"
   ).bind(combinationKey).all();
   const countsById = Object.fromEntries((countsResult.results || []).map((row) => [row.driver_id, Number(row.trips)]));
-  const members = users.filter((user) => participants.includes(user.id));
-  const breakdown = members.map((user) => ({ id: user.id, name: user.name, trips: countsById[user.id] || 0 }));
+  
+  const { globalStats, userStats } = await calculateAllStats(db, users);
+  const memberStats = userStats.filter((u) => participants.includes(u.id));
+
+  // Sort memberStats by balance ASC (lowest balance first), then driverTotal ASC
+  const sortedMembers = [...memberStats].sort((a, b) => {
+    if (Math.abs(a.balance - b.balance) > 0.0001) return a.balance - b.balance;
+    if (a.driverTotal !== b.driverTotal) return a.driverTotal - b.driverTotal;
+    return a.name.localeCompare(b.name);
+  });
+  const recommended = sortedMembers[0] || null;
+
+  const breakdown = participants.map((id) => {
+    const u = users.find((item) => item.id === id);
+    return {
+      id,
+      name: u?.name || id,
+      trips: countsById[id] || 0
+    };
+  });
   const totalTrips = breakdown.reduce((sum, item) => sum + item.trips, 0);
-  const minimum = breakdown.length ? Math.min(...breakdown.map((item) => item.trips)) : 0;
-  const recommended = breakdown.find((item) => item.trips === minimum) || null;
   const savedKilometers = totalTrips * Math.max(0, participants.length - 1) * APP_CONFIG.routeKilometers;
+
   return {
     combinationKey,
     participants,
     breakdown,
     totalTrips,
     recommended,
+    memberStats: sortedMembers,
+    globalStats,
     savedKilometers,
     savedCo2Kg: savedKilometers * APP_CONFIG.co2KgPerKilometer
   };
@@ -125,9 +228,12 @@ async function handleApi(request, env, url) {
     const combinationsResult = await env.DB.prepare(
       "SELECT combination_key, participants_json, COUNT(*) AS trips, MAX(trip_date) AS last_trip FROM trips GROUP BY combination_key, participants_json ORDER BY last_trip DESC"
     ).all();
+    const { globalStats, userStats } = await calculateAllStats(env.DB, users);
     return json({
       users,
       config: { routeKilometers: APP_CONFIG.routeKilometers, co2KgPerKilometer: APP_CONFIG.co2KgPerKilometer },
+      globalStats,
+      userStats,
       combinations: (combinationsResult.results || []).map((row) => ({
         key: row.combination_key,
         participants: JSON.parse(row.participants_json),

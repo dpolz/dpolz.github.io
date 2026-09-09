@@ -53,51 +53,133 @@
           </div>
         </header>
 
-        <div class="route-line" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="route-line" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 
-        <section class="card combination-card" aria-labelledby="combination-title">
+        <section class="card quickstats-card" aria-labelledby="quickstats-title">
           <div class="card-heading">
             <div class="step">01</div>
             <div>
-              <p class="kicker">Wer fährt mit?</p>
-              <h2 id="combination-title">Heutige Kombination</h2>
+              <p class="kicker">Gesamtübersicht</p>
+              <h2 id="quickstats-title">Quick-Stats</h2>
+            </div>
+          </div>
+          <div class="metrics quickstats-metrics">
+            <article class="metric">
+              <div class="metric-icon total" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 17h14M7 17l1.2-6.2A2 2 0 0 1 10.16 9h3.68a2 2 0 0 1 1.96 1.8L17 17M8 14h.01M16 14h.01M7 17v2M17 17v2"/></svg>
+              </div>
+              <div><strong id="qs-total-trips">0</strong><span>Fahrten insgesamt</span></div>
+            </article>
+            <article class="metric">
+              <div class="metric-icon kilometers" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div><strong id="qs-saved-km">0</strong><span>km eingespart</span></div>
+            </article>
+            <article class="metric">
+              <div class="metric-icon co2" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M6 19c7 0 12-5 12-12-7 0-12 5-12 12Zm0 0c1.5-4 4.5-7 9-9M6 19h12"/></svg>
+              </div>
+              <div><strong id="qs-saved-co2">0</strong><span>kg CO₂ eingespart</span></div>
+            </article>
+          </div>
+          <div class="quickstats-table-wrapper">
+            <div class="table-subheading">
+              <h3>Teilnehmer (letzte 3 Monate)</h3>
+              <small class="detail-schema-hint">Schema: <strong>Gesamt</strong> <span class="detail-breakdown">/ 2er / 3er / 4er / 5er</span></small>
+            </div>
+            <div class="table-scroll">
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>Nutzer</th>
+                    <th>Fahrten</th>
+                    <th>Fahrten als Fahrer</th>
+                    <th>Bilanz</th>
+                  </tr>
+                </thead>
+                <tbody id="quickstats-tbody">
+                  <tr><td colspan="4" class="table-empty">Wird geladen …</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="combination-card" class="card combination-card" aria-labelledby="combination-title">
+          <div class="card-heading">
+            <div class="step">02</div>
+            <div>
+              <p class="kicker">Wer fährt mit & wer übernimmt?</p>
+              <h2 id="combination-title">Heutige Fairgemeinschaft</h2>
             </div>
             <div id="combination-status" class="sync-status" aria-live="polite">Bereit</div>
           </div>
           <div id="participant-slots" class="participant-slots"></div>
           <p id="combination-error" class="inline-error" role="alert"></p>
+
+          <div id="combination-details" class="combination-details" hidden>
+            <div class="participant-stats-wrapper">
+              <div class="table-subheading">
+                <h3>Mitfahrer-Statistiken</h3>
+                <small class="detail-schema-hint">Schema: <strong>Gesamt</strong> <span class="detail-breakdown">/ 2er / 3er / 4er / 5er</span></small>
+              </div>
+              <div class="table-scroll">
+                <table class="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Mitfahrer</th>
+                      <th>Fahrten</th>
+                      <th>Als Fahrer</th>
+                      <th>Bilanz</th>
+                    </tr>
+                  </thead>
+                  <tbody id="participant-stats-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="result-banner" class="result-banner" role="status" hidden></div>
+
+            <div id="driver-controls">
+              <div class="recommendation">
+                <span>Empfohlen</span>
+                <strong id="recommended-driver">—</strong>
+                <small id="recommendation-reason">Kombination wird geprüft</small>
+              </div>
+              <label for="driver-select">Fahrer auswählen</label>
+              <select id="driver-select"></select>
+              <div class="button-row">
+                <button id="confirm-driver" class="primary-button" type="button">Fahrer bestätigen</button>
+                <button id="skip-driver" class="secondary-button" type="button">Direkt zur Auswertung</button>
+              </div>
+            </div>
+          </div>
         </section>
 
-        <section id="driver-card" class="card driver-card" aria-labelledby="driver-title">
+        <section id="calendar-card" class="card calendar-card" aria-labelledby="calendar-title">
           <div class="card-heading">
-            <div class="step">02</div>
+            <div class="step">03</div>
             <div>
-              <p class="kicker">Wer übernimmt?</p>
-              <h2 id="driver-title">Fahrer</h2>
+              <p class="kicker">Fahrten verwalten</p>
+              <h2 id="calendar-title">Kalender</h2>
+            </div>
+            <div class="calendar-nav">
+              <button id="calendar-prev" class="icon-button" type="button" aria-label="Vorheriger Monat">‹</button>
+              <strong id="calendar-month"></strong>
+              <button id="calendar-next" class="icon-button" type="button" aria-label="Nächster Monat">›</button>
             </div>
           </div>
-          <div id="result-banner" class="result-banner" role="status" hidden></div>
-          <div id="driver-controls">
-            <div class="recommendation">
-              <span>Empfohlen</span>
-              <strong id="recommended-driver">—</strong>
-              <small id="recommendation-reason">Kombination wird geprüft</small>
-            </div>
-            <label for="driver-select">Fahrer auswählen</label>
-            <select id="driver-select"></select>
-            <div class="button-row">
-              <button id="confirm-driver" class="primary-button" type="button">Fahrer bestätigen</button>
-              <button id="skip-driver" class="secondary-button" type="button">Direkt zur Auswertung</button>
-            </div>
-          </div>
+          <div class="calendar-weekdays" aria-hidden="true"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+          <div id="calendar-grid" class="calendar-grid" aria-label="Fahrtenkalender"></div>
         </section>
 
         <section id="history-card" class="card history-card" aria-labelledby="history-title">
           <div class="card-heading history-heading">
-            <div class="step">03</div>
+            <div class="step">04</div>
             <div>
               <p class="kicker">Was haben wir erreicht?</p>
-              <h2 id="history-title">Auswertung</h2>
+              <h2 id="history-title">Kombinations-Historie</h2>
             </div>
             <label class="history-select-label" for="history-select">
               <span>Kombination</span>
@@ -128,21 +210,6 @@
               <p id="calculation-note" class="calculation-note"></p>
             </div>
           </div>
-
-          <div class="calendar-divider"></div>
-          <div class="calendar-heading">
-            <div>
-              <p class="kicker">Fahrten verwalten</p>
-              <h3>Kalender</h3>
-            </div>
-            <div class="calendar-nav">
-              <button id="calendar-prev" class="icon-button" type="button" aria-label="Vorheriger Monat">‹</button>
-              <strong id="calendar-month"></strong>
-              <button id="calendar-next" class="icon-button" type="button" aria-label="Nächster Monat">›</button>
-            </div>
-          </div>
-          <div class="calendar-weekdays" aria-hidden="true"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
-          <div id="calendar-grid" class="calendar-grid" aria-label="Fahrtenkalender"></div>
         </section>
       </div>
     </main>

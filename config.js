@@ -5,7 +5,14 @@ export const APP_CONFIG = {
   users: [
     { id: "felix", name: "Felix" },
     { id: "mo", name: "Mo" },
-    { id: "daniel", name: "Daniel" }
+    { id: "daniel", name: "Daniel" },
+    { id: "julian", name: "Julian" },
+    { id: "gautam", name: "Gautam" },
+    { id: "samu", name: "Samu" },
+    { id: "michi", name: "Michi" },
+    { id: "strobl", name: "Strobl" },
+    { id: "daniel_l", name: "Daniel Lengerer" },
+    { id: "el_profesor", name: "El Profesor" }
   ],
   routeKilometers: 42,
   co2KgPerKilometer: 0.12
