@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101c2c" />
+    <meta name="description" content="Fahrten fair verteilen und gemeinsam gesparte Kilometer im Blick behalten." />
+    <title>Fahrgemeinschaft</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <main class="shell">
+      <section id="login-view" class="login-view" aria-labelledby="login-title">
+        <div class="login-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 17h14M7 17l1.2-6.2A2 2 0 0 1 10.16 9h3.68a2 2 0 0 1 1.96 1.8L17 17M8 14h.01M16 14h.01M7 17v2M17 17v2"/></svg>
+        </div>
+        <p class="eyebrow">Gemeinsam unterwegs</p>
+        <h1 id="login-title">Fahrgemeinschaft</h1>
+        <p class="login-copy">Ein Passwort, dann könnt ihr Fahrten eintragen und die faire Verteilung sehen.</p>
+        <form id="login-form" class="login-form">
+          <label for="password">Passwort</label>
+          <div class="password-row">
+            <input id="password" name="password" type="password" autocomplete="current-password" required autofocus />
+            <button type="submit">Anmelden</button>
+          </div>
+          <p id="login-error" class="form-error" role="alert"></p>
+        </form>
+      </section>
+
+      <div id="app-view" class="app-view" hidden>
+        <header class="app-header">
+          <div>
+            <p class="eyebrow">Gemeinsam unterwegs</p>
+            <h1>Fahrgemeinschaft</h1>
+          </div>
+          <div class="header-actions">
+            <time id="today-label"></time>
+            <button id="logout-button" class="icon-button" type="button" aria-label="Abmelden" title="Abmelden">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="route-line" aria-hidden="true"><span></span><span></span><span></span></div>
+
+        <section class="card combination-card" aria-labelledby="combination-title">
+          <div class="card-heading">
+            <div class="step">01</div>
+            <div>
+              <p class="kicker">Wer fährt mit?</p>
+              <h2 id="combination-title">Heutige Kombination</h2>
+            </div>
+            <div id="combination-status" class="sync-status" aria-live="polite">Bereit</div>
+          </div>
+          <div id="participant-slots" class="participant-slots"></div>
+          <p id="combination-error" class="inline-error" role="alert"></p>
+        </section>
+
+        <section id="driver-card" class="card driver-card" aria-labelledby="driver-title">
+          <div class="card-heading">
+            <div class="step">02</div>
+            <div>
+              <p class="kicker">Wer übernimmt?</p>
+              <h2 id="driver-title">Fahrer</h2>
+            </div>
+          </div>
+          <div id="result-banner" class="result-banner" role="status" hidden></div>
+          <div id="driver-controls">
+            <div class="recommendation">
+              <span>Empfohlen</span>
+              <strong id="recommended-driver">—</strong>
+              <small id="recommendation-reason">Kombination wird geprüft</small>
+            </div>
+            <label for="driver-select">Fahrer auswählen</label>
+            <select id="driver-select"></select>
+            <div class="button-row">
+              <button id="confirm-driver" class="primary-button" type="button">Fahrer bestätigen</button>
+              <button id="skip-driver" class="secondary-button" type="button">Direkt zur Auswertung</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="history-card" class="card history-card" aria-labelledby="history-title">
+          <div class="card-heading history-heading">
+            <div class="step">03</div>
+            <div>
+              <p class="kicker">Was haben wir erreicht?</p>
+              <h2 id="history-title">Auswertung</h2>
+            </div>
+            <label class="history-select-label" for="history-select">
+              <span>Kombination</span>
+              <select id="history-select"></select>
+            </label>
+          </div>
+          <div id="history-empty" class="history-empty">Wählt eine Kombination, um ihre Historie zu sehen.</div>
+          <div id="history-content" class="history-content" hidden>
+            <div class="chart-panel">
+              <div id="donut" class="donut" role="img" aria-label="Verteilung der Fahrten">
+                <div class="donut-center"><strong id="total-trips">0</strong><span>Fahrten</span></div>
+              </div>
+              <div id="legend" class="legend"></div>
+            </div>
+            <div class="metrics">
+              <article class="metric">
+                <div class="metric-icon kilometers" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M5 17h14M7 17l1.2-6.2A2 2 0 0 1 10.16 9h3.68a2 2 0 0 1 1.96 1.8L17 17M8 14h.01M16 14h.01M7 17v2M17 17v2"/></svg>
+                </div>
+                <div><strong id="saved-km">0</strong><span>km eingespart</span></div>
+              </article>
+              <article class="metric">
+                <div class="metric-icon co2" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M6 19c7 0 12-5 12-12-7 0-12 5-12 12Zm0 0c1.5-4 4.5-7 9-9M6 19h12"/></svg>
+                </div>
+                <div><strong id="saved-co2">0</strong><span>kg CO₂ eingespart</span></div>
+              </article>
+              <p id="calculation-note" class="calculation-note"></p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
