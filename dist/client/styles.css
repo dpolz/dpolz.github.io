@@ -195,10 +195,11 @@ legend { margin-bottom: 10px; color: #48586b; font-size: .9rem; font-weight: 700
 .trip-person input { min-height: auto; width: 20px; height: 20px; accent-color: var(--blue); }
 .danger-button { padding: 0 20px; border: 1px solid #efc2bf; border-radius: 12px; background: var(--danger-bg); color: var(--danger); font-weight: 800; }
 
-.login-view { width: min(480px, 100%); margin: 12vh auto 0; padding: 42px; border-radius: 26px; background: white; box-shadow: var(--shadow); }
-.login-mark { display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 28px; border-radius: 18px; background: var(--navy); color: white; }
-.login-view h1 { font-size: 2.5rem; }
-.login-copy { margin: 17px 0 28px; color: var(--muted); line-height: 1.6; }
+.login-view { width: min(480px, 100%); margin: 8vh auto 0; padding: 36px; border-radius: 26px; background: white; box-shadow: var(--shadow); text-align: center; box-sizing: border-box; overflow: hidden; }
+.login-hero-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; margin-bottom: 20px; overflow: hidden; }
+.login-hero-image { display: block; width: 100%; max-width: 100%; height: auto; max-height: 200px; object-fit: contain; border-radius: 16px; }
+.login-copy { margin: 0 0 24px; color: var(--muted); line-height: 1.6; font-size: 0.95rem; }
+.login-form label { text-align: left; }
 .password-row { display: grid; grid-template-columns: 1fr auto; gap: 9px; }
 .password-row button { padding: 0 20px; border: 0; border-radius: 11px; background: var(--blue); color: white; font-weight: 800; }
 

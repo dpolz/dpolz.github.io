@@ -23,6 +23,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot "service-worker.js") -Destination
 Copy-Item -LiteralPath (Join-Path $projectRoot "icon.svg") -Destination $clientRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "icon-192.png") -Destination $clientRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "icon-512.png") -Destination $clientRoot
+Copy-Item -LiteralPath (Join-Path $projectRoot "fairgemeinschaft.jpg") -Destination $clientRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "worker\index.js") -Destination $serverRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot "config.js") -Destination (Join-Path $serverRoot "config.js")
 
