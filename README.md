@@ -1,14 +1,15 @@
 # Fairgemeinschaft
 
-Eine installierbare, passwortgeschützte PWA (Progressive Web App) zum fairen Verteilen gemeinsamer Fahrten für Android, iOS und Desktop.
+Eine installierbare, passwortgeschützte PWA (Progressive Web App) zum fairen Verteilen gemeinsamer Fahrten für Android, iOS und Desktop, gehostet via **Cloudflare Pages** und **Cloudflare Workers (D1-Datenbank)** unter `https://fairgemeinschaft.de`.
 
 ## Funktionen
 
-1. **Kombination auswählen (4 Plätze)**: Mitfahrer per Checkbox und Dropdown wählen.
-2. **Fahrer-Empfehlung**: Vorschlag des Fahrers basiert ausschließlich auf den historischen Fahrten der exakt identischen Kombination.
-3. **Auswertung**: Donut-Diagramm je Fahrer, berechnete eingesparte Kilometer ($42\text{ km} \times (\text{Mitfahrer}-1)$) und eingespartes $\text{CO}_2$ ($0{,}12\text{ kg/km}$).
-4. **Kalender**: Übersicht über alle vergangenen Fahrten nach Monaten, nachträgliches Eintragen, Ändern und Löschen.
-5. **PWA-Unterstützung**: Installierbar auf Android und iOS (Homescreen).
+1. **Quick-Stats**: Gesamtübersicht mit 3 Ringdiagrammen (Fahrtenverteilung, Personenkilometer, CO₂-Bilanz) und 3-Monats-Aktivitätstabelle mit Punktestand.
+2. **Heutige Fairgemeinschaft (5 Plätze)**: Mitfahrer wählen, Live-Statistiken der Mitfahrer einsehen und automatische Empfehlung des Fahrers anhand der geringsten Bilanz.
+3. **Fairgemeinschafts-Statistik**: Donut-Diagramm und Detailauswertung der jeweiligen Gruppenkombination.
+4. **User-Statistik**: Detaillierte Kennzahlen je Nutzer (Fahrten, Fahrer/Mitfahrer-Verhältnis, bevorzugte Gruppengröße, Best Buddy, Lieblings-Fahrer, Streaks).
+5. **Kalender (Fahrten verwalten)**: Monatskalender mit direkter Fahrervorschau je Tag, nachträgliches Eintragen, Ändern und Löschen.
+6. **PWA-Unterstützung**: Installierbar auf Android, iOS (Homescreen) und Desktop.
 
 ## Konfiguration
 
@@ -20,47 +21,32 @@ export const APP_CONFIG = {
   users: [
     { id: "felix", name: "Felix" },
     { id: "mo", name: "Mo" },
-    { id: "daniel", name: "Daniel" }
+    { id: "daniel", name: "Daniel" },
+    // ...
   ],
   routeKilometers: 42,
   co2KgPerKilometer: 0.12
 };
 ```
 
-## Backend einrichten (Cloudflare Worker & D1)
+## Deployment (Cloudflare Worker & Cloudflare Pages)
 
-GitHub Pages hostet nur statische Dateien. Die gemeinsame Historie und Authentifizierung laufen über einen kostenlosen Cloudflare Worker mit D1-Datenbank:
+Frontend und Backend werden komplett über Cloudflare bereitgestellt:
 
-1. **Wrangler einrichten & D1-Datenbank erstellen**:
-   ```bash
-   npx wrangler login
-   npx wrangler d1 create fairgemeinschaft-db
+1. **Build & Deploy ausführen**:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
    ```
-   Kopiere die ausgegebene `database_id` in `wrangler.toml`.
+   *Dieses Skript baut die Client-Assets (`dist/client`), aktualisiert den Worker (`npx wrangler deploy`) und veröffentlicht das Frontend auf Cloudflare Pages (`npx wrangler pages deploy`).*
 
-2. **Datenbankschema initialisieren**:
-   ```bash
-   npx wrangler d1 execute fairgemeinschaft-db --file=drizzle/0000_initial.sql --remote
-   ```
+2. **Custom Domain `fairgemeinschaft.de` in Cloudflare Pages einrichten**:
+   - Gehe im Cloudflare Dashboard zu **Workers & Pages** -> **Pages** -> **fairgemeinschaft**.
+   - Klicke auf **Custom Domains** -> **Set up a custom domain**.
+   - Trage `fairgemeinschaft.de` (und optional `www.fairgemeinschaft.de`) ein.
+   - Cloudflare richtet automatisch die DNS-Einträge und das SSL-Zertifikat ein.
 
-3. **Geheimnisse für Login & Session setzen**:
-   - SHA-256 Hash deines Passworts berechnen (z. B. in PowerShell: `[BitConverter]::ToString((New-Object Security.Cryptography.SHA256Managed).ComputeHash([Text.Encoding]::UTF8.GetBytes("DEIN_PASSWORT"))).Replace("-","").ToLower()`)
+3. **Geheimnisse für Login & Session (falls noch nicht gesetzt)**:
    ```bash
    npx wrangler secret put AUTH_PASSWORD_HASH
    npx wrangler secret put SESSION_SECRET
    ```
-
-4. **Worker bauen & deployen**:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
-   ```
-   (Alternativ: `powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Deploy` oder direkt `npx wrangler deploy`)
-   Trage die resultierende Worker-URL (z. B. `https://fairgemeinschaft-api.<subdomain>.workers.dev`) in `config.js` als `apiBase` ein.
-
-5. **Änderungen committen & pushen**:
-   ```bash
-   git add .
-   git commit -m "Update API base URL"
-   git push
-   ```
-   Die App ist nun unter `https://dpolz.github.io` voll funktionsfähig.

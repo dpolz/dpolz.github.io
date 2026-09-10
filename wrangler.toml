@@ -8,4 +8,4 @@ database_name = "fairgemeinschaft-db"
 database_id = "e2c25aba-350a-4f67-a191-89f4da1d79d9"
 
 [vars]
-APP_ORIGIN = "https://dpolz.github.io"
+APP_ORIGIN = "https://fairgemeinschaft.de,https://www.fairgemeinschaft.de,https://dpolz.github.io"

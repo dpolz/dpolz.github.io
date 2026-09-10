@@ -467,21 +467,28 @@ async function handleApi(request, env, url) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const allowedOrigin = env.APP_ORIGIN || "https://dpolz.github.io";
+    const originSetting = env.APP_ORIGIN || "https://fairgemeinschaft.de,https://www.fairgemeinschaft.de,https://dpolz.github.io";
+    const allowedOrigins = originSetting.split(",").map((s) => s.trim()).filter(Boolean);
     const requestOrigin = request.headers.get("origin");
+    const isOriginAllowed = requestOrigin && (
+      allowedOrigins.includes(requestOrigin) ||
+      requestOrigin.endsWith(".pages.dev")
+    );
+    const matchedOrigin = isOriginAllowed ? requestOrigin : (allowedOrigins[0] || "https://fairgemeinschaft.de");
+
     const addCors = (response) => {
-      if (requestOrigin !== allowedOrigin) return response;
+      if (!isOriginAllowed) return response;
       const headers = new Headers(response.headers);
-      headers.set("access-control-allow-origin", allowedOrigin);
+      headers.set("access-control-allow-origin", matchedOrigin);
       headers.set("access-control-allow-credentials", "true");
       headers.set("vary", "Origin");
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     };
     try {
       if (url.pathname.startsWith("/api/") && request.method === "OPTIONS") {
-        if (requestOrigin !== allowedOrigin) return new Response(null, { status: 403 });
+        if (!isOriginAllowed) return new Response(null, { status: 403 });
         return new Response(null, { status: 204, headers: {
-          "access-control-allow-origin": allowedOrigin,
+          "access-control-allow-origin": matchedOrigin,
           "access-control-allow-credentials": "true",
           "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
           "access-control-allow-headers": "Content-Type, Authorization",
